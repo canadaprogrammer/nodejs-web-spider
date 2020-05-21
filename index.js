@@ -39,25 +39,49 @@ const download = (url, filename, callback) => {
         if (err) return callback(err)
         saveFile(filename, body, err => {
             if (err) return callback(err)
-            callback()
+            callback(null, body)
         })
     })
 }
 
-const spider = (url, callback) => {
-    const filename = utilities.urlToFilename(url)
-    fs.exists(filename, exists => {
-        if (exists) return callback(null, filename, false)
-        download(url, filename, err => {
+const spiderLinks = (currentUrl, body, nesting, callback) => {
+    if (nesting === 0) return process.nextTick(callback)
+    const links = utilities.getPageLinks(currentUrl, body)
+    // repeat links
+    const iterate = index => {
+        if (index === links.length) return callback()
+        spider(links[index], nesting - 1, err => {
             if (err) return callback(err)
-            callback(null, filename, true)
+            iterate(index + 1)
         })
+    }
+    iterate(0)
+
+}
+
+const spider = (url, nesting, callback) => {
+    const filename = utilities.urlToFilename(url)
+    fs.readFile(filename, 'utf8', (err, body) => {
+        if (err) {
+            if (err.code !== 'ENOENT') return callback(err)
+
+            return download(url, filename, (err, body) => {
+                if (err) return callback(err)
+                spiderLinks(url, body, nesting, callback)
+            })
+        }
+
+        spiderLinks(url, body, nesting, callback)
     })
 }
 // end
 
-spider(process.argv[2], (err, filename, downloaded) => {
-    if (err) console.log(err)
-    else if(downloaded) console.log(`Completed the download of "${filename}"`)
-    else console.log(`"${filename}" was already downloaded`)
+spider(process.argv[2], 1, (err) => {
+    if (err) {
+        console.log(err)
+        process.exit()
+    } else {
+        console.log('Download completed')
+    }
+    
 })
