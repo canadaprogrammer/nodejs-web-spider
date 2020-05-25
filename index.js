@@ -44,6 +44,7 @@ const download = (url, filename, callback) => {
     })
 }
 
+// using sequential execution
 const spiderLinks = (currentUrl, body, nesting, callback) => {
     if (nesting === 0) return process.nextTick(callback)
     const links = utilities.getPageLinks(currentUrl, body)
@@ -56,8 +57,26 @@ const spiderLinks = (currentUrl, body, nesting, callback) => {
         })
     }
     iterate(0)
-
 }
+
+// using parallel execution
+// const spiderLinks = (currentUrl, body, nesting, callback) => {
+//     if (nesting === 0) return process.nextTick(callback)
+//     const links = utilities.getPageLinks(currentUrl, body)
+//     if (links.length === 0) return process.nextTick(callback)
+
+//     let completed = 0, hasErrors = false
+
+//     const done = err => {
+//         if (err) {
+//             hasErrors = true
+//             return callback(err)
+//         }
+//         if (++completed == links.length && !hasErrors) return callback()
+//     }
+
+//     links.forEach(link => spider(link, nesting - 1, done))
+// }
 
 const spider = (url, nesting, callback) => {
     const filename = utilities.urlToFilename(url)
@@ -76,7 +95,7 @@ const spider = (url, nesting, callback) => {
 }
 // end
 
-spider(process.argv[2], 1, (err) => {
+spider(process.argv[2], 2, (err) => {
     if (err) {
         console.log(err)
         process.exit()
