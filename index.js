@@ -37,7 +37,6 @@ const download = (url, filename, callback) => {
     })
 }
 
-<<<<<<< HEAD
 // using queue to prevent overflow
 // limitted parallel execution
 // limitted concurrency
@@ -45,9 +44,6 @@ const TaskQueue = require('./taskQueue')
 const initialConcurrency = process.argv[3] ? parseInt(process.argv[3]) : 50
 let downloadQueue = new TaskQueue(initialConcurrency)
 
-=======
-// using sequential execution
->>>>>>> c85c0c47496438ad9ad7dc8c33f275c1acc4e83e
 const spiderLinks = (currentUrl, body, nesting, callback) => {
     if (nesting === 0) return process.nextTick(callback)
     const links = utilities.getPageLinks(currentUrl, body)
@@ -59,7 +55,6 @@ const spiderLinks = (currentUrl, body, nesting, callback) => {
     if (downloadQueue.getConcurrency < links.length) {
         downloadQueue.setConcurrency(links.length)
     }
-<<<<<<< HEAD
 
     links.forEach(link => {
         downloadQueue.pushTask(done => {
@@ -79,29 +74,6 @@ const spiderLinks = (currentUrl, body, nesting, callback) => {
 }
 
 const spidering = new Map()
-=======
-    iterate(0)
-}
-
-// using parallel execution
-// const spiderLinks = (currentUrl, body, nesting, callback) => {
-//     if (nesting === 0) return process.nextTick(callback)
-//     const links = utilities.getPageLinks(currentUrl, body)
-//     if (links.length === 0) return process.nextTick(callback)
-
-//     let completed = 0, hasErrors = false
-
-//     const done = err => {
-//         if (err) {
-//             hasErrors = true
-//             return callback(err)
-//         }
-//         if (++completed == links.length && !hasErrors) return callback()
-//     }
-
-//     links.forEach(link => spider(link, nesting - 1, done))
-// }
->>>>>>> c85c0c47496438ad9ad7dc8c33f275c1acc4e83e
 
 const spider = (url, nesting, callback) => {
     // adding a condition to solve a delay between calls and returns
@@ -124,7 +96,6 @@ const spider = (url, nesting, callback) => {
 }
 // end
 
-<<<<<<< HEAD
 // for testing
 // spider(process.argv[2], parseInt(process.argv[3]), (err) => {
 // In case of https://yarnpkg.org
@@ -132,8 +103,6 @@ const spider = (url, nesting, callback) => {
 // when nesting was 3, concurrency needed to be greater than 140 but the highest length of links was 108
 // However, the results of nesting 2 and 3 were not different 
 
-=======
->>>>>>> c85c0c47496438ad9ad7dc8c33f275c1acc4e83e
 spider(process.argv[2], 2, (err) => {
     if (err) {
         console.log(err)
