@@ -60,25 +60,31 @@ const download = (url, filename, callback) => {
 // }
 
 // using parallel execution
-// const spiderLinks = (currentUrl, body, nesting, callback) => {
-//     if (nesting === 0) return process.nextTick(callback)
-//     const links = utilities.getPageLinks(currentUrl, body)
-//     if (links.length === 0) return process.nextTick(callback)
+const spiderLinks = (currentUrl, body, nesting, callback) => {
+    if (nesting === 0) return process.nextTick(callback)
+    const links = utilities.getPageLinks(currentUrl, body)
+    if (links.length === 0) return process.nextTick(callback)
 
-//     let completed = 0, hasErrors = false
+    let completed = 0, hasErrors = false
 
-//     const done = err => {
-//         if (err) {
-//             hasErrors = true
-//             return callback(err)
-//         }
-//         if (++completed == links.length && !hasErrors) return callback()
-//     }
+    const done = err => {
+        if (err) {
+            hasErrors = true
+            return callback(err)
+        }
+        if (++completed == links.length && !hasErrors) return callback()
+    }
 
-//     links.forEach(link => spider(link, nesting - 1, done))
-// }
+    links.forEach(link => spider(link, nesting - 1, done))
+}
+
+const spidering = new Map()
 
 const spider = (url, nesting, callback) => {
+    // adding a condition to solve a delay between calls and returns
+    if (spidering.has(url)) return process.nextTick(callback)
+    spidering.set(url, true)
+
     const filename = utilities.urlToFilename(url)
     fs.readFile(filename, 'utf8', (err, body) => {
         if (err) {
