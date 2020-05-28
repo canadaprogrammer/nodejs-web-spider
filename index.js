@@ -25,38 +25,70 @@ const utilities = require('./utilities')
 //     })
 // }
 
-// start to apply callback rule
-const saveFile = (filename, contents, callback) => {
-    mkdirp(path.dirname(filename), err => {
-        if (err) return callback(err)
-        fs.writeFile(filename, contents, callback)
-    })
-}
+// // start to apply callback rule
+// const saveFile = (filename, contents, callback) => {
+//     mkdirp(path.dirname(filename), err => {
+//         if (err) return callback(err)
+//         fs.writeFile(filename, contents, callback)
+//     })
+// }
 
+// const download = (url, filename, callback) => {
+//     console.log(`Downloading ${url}`)
+//     request(url, (err, res, body) => {
+//         if (err) return callback(err)
+//         saveFile(filename, body, err => {
+//             if (err) return callback(err)
+//             callback(null, body)
+//         })
+//     })
+// }
+
+// apply async.series() for sequential execution flow
+const async = require('async')
 const download = (url, filename, callback) => {
     console.log(`Downloading ${url}`)
-    request(url, (err, res, body) => {
-        if (err) return callback(err)
-        saveFile(filename, body, err => {
-            if (err) return callback(err)
-            callback(null, body)
-        })
+
+    let body
+    
+    async.series([
+        callback => {
+            request(url, (err, res, resBody) => {
+                if (err) return callback(err)
+                body = resBody
+                callback()
+            })
+        },
+        mkdirp.bind(null, path.dirname(filename)),
+
+        callback => fs.writeFile(filename, body, callback)
+    ], err => {
+        if (err) return callback
+
+        console.log(`Downloaded and saved: ${url}`)
+        callback(null, body)
     })
 }
 
 const spiderLinks = (currentUrl, body, nesting, callback) => {
     if (nesting === 0) return process.nextTick(callback)
     const links = utilities.getPageLinks(currentUrl, body)
-    // repeat links
-    const iterate = index => {
-        if (index === links.length) return callback()
-        spider(links[index], nesting - 1, err => {
-            if (err) return callback(err)
-            iterate(index + 1)
-        })
-    }
-    iterate(0)
+    if (links.length === 0) return process.nextTick(callback)
 
+    // // repeat links
+    // const iterate = index => {
+    //     if (index === links.length) return callback()
+    //     spider(links[index], nesting - 1, err => {
+    //         if (err) return callback(err)
+    //         iterate(index + 1)
+    //     })
+    // }
+    // iterate(0)
+
+    // apply async.eachSeries for sequential iteration
+    async.eachSeries(links, (link, callback) => {
+        spider(link, nesting - 1, callback)
+    }, callback)
 }
 
 const spider = (url, nesting, callback) => {
