@@ -35,12 +35,14 @@ module.exports.getPageLinks = (currentUrl, body) => {
 // promisification
 module.exports.promisify = callbackBaseApi => {
   return function promisified() {
-    const args = [].slice.call(arguments)
+    // const args = [].slice.call(arguments)
+    const args = Array.from(arguments)
     return new Promise((resolve, reject) => {
       args.push((err, result) => {
         if (err) return reject(err)
         if (arguments.length <= 2) resolve(result)
-        else resolve([].slice.call(arguments, 1))
+        // else resolve([].slice.call(arguments, 1))
+        else resolve(Array.from(arguments).slice(1))
       })
       callbackBaseApi.apply(null, args)
     })
