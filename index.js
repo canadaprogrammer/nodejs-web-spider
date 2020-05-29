@@ -70,25 +70,49 @@ const download = (url, filename, callback) => {
     })
 }
 
+// const spiderLinks = (currentUrl, body, nesting, callback) => {
+//     if (nesting === 0) return process.nextTick(callback)
+//     const links = utilities.getPageLinks(currentUrl, body)
+//     if (links.length === 0) return process.nextTick(callback)
+
+//     // // repeat links
+//     // const iterate = index => {
+//     //     if (index === links.length) return callback()
+//     //     spider(links[index], nesting - 1, err => {
+//     //         if (err) return callback(err)
+//     //         iterate(index + 1)
+//     //     })
+//     // }
+//     // iterate(0)
+
+//     // apply async.eachSeries for sequential iteration
+//     async.each(links, (link, callback) => {
+//         spider(link, nesting - 1, callback)
+//     }, callback)
+// }
+
+// limited parallel execution
+const downloadQueue = async.queue((taskData, callback) => {
+    spider(taskData.link, taskData.nesting - 1, callback)
+}, 2)
+
 const spiderLinks = (currentUrl, body, nesting, callback) => {
     if (nesting === 0) return process.nextTick(callback)
     const links = utilities.getPageLinks(currentUrl, body)
     if (links.length === 0) return process.nextTick(callback)
 
-    // // repeat links
-    // const iterate = index => {
-    //     if (index === links.length) return callback()
-    //     spider(links[index], nesting - 1, err => {
-    //         if (err) return callback(err)
-    //         iterate(index + 1)
-    //     })
-    // }
-    // iterate(0)
+    let completed = 0, hasErrors = false
 
-    // apply async.eachSeries for sequential iteration
-    async.eachSeries(links, (link, callback) => {
-        spider(link, nesting - 1, callback)
-    }, callback)
+    links.forEach(link => {
+        const taskData = {link, nesting}
+        downloadQueue.push(taskData, err => {
+            if (err) {
+                hasErrors = true
+                return callback(err)
+            }
+            if (++completed === links.length && !hasErrors) callback()
+        })
+    })
 }
 
 const spider = (url, nesting, callback) => {
