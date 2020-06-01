@@ -106,10 +106,14 @@ const spiderLinks = (currentUrl, body, nesting) => {
     // use reduce
     if (nesting === 0) return Promise.resolve()
     const links = utilities.getPageLinks(currentUrl, body)
-    return links.reduce(
-        (prev, link) => prev.then(() => spider(link, nesting - 1)),
-        Promise.resolve()
-    )
+    // return links.reduce(
+    //     (prev, link) => prev.then(() => spider(link, nesting - 1)),
+    //     Promise.resolve()
+    // )
+
+    // parallel execution flow
+    const promise = links.map(link => spider(link, nesting - 1))
+    return Promise.all(promise)
 }
 const spider = (url, nesting) => {
     let filename = utilities.urlToFilename(url)
