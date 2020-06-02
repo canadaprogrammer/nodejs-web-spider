@@ -1,4 +1,4 @@
-# simple web-spider
+# simple web-spider - using co generator
 
 This is a simple web spider for learning about async.
 

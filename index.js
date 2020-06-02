@@ -1,87 +1,53 @@
 "use strict"
 
-const request = require('request')
+const thunkify = require('thunkify')
+const co = require('co')
+
 const fs = require('fs')
-const mkdirp = require('mkdirp')
+const request = thunkify(require('request'))
+const mkdirp = thunkify(require('mkdirp'))
+const readFile = thunkify(fs.readFile)
+const writeFile = thunkify(fs.writeFile)
+const nextTick = thunkify(process.nextTick)
+
 const path = require('path')
 const utilities = require('./utilities')
 
-// const spider = (url, callback) => {
-//     const filename = utilities.urlToFilename(url)
-//     fs.exists(filename, exists => {
-//         if (!exists) {
-//             console.log(`Downloading ${url}`)
-//             request(url, (err, res, body) => {
-//                 if (err) return callback(err)
-//                 mkdirp(path.dirname(filename), err => {
-//                     if (err) return callback(err)
-//                     fs.writeFile(filename, body, err => {
-//                         if (err) return callback(err)
-//                         callback(null, filename, true)
-//                     })
-//                 })
-//             })
-//         } else callback(null, filename, false)
-//     })
-// }
-
-// start to apply callback rule
-const saveFile = (filename, contents, callback) => {
-    mkdirp(path.dirname(filename), err => {
-        if (err) return callback(err)
-        fs.writeFile(filename, contents, callback)
-    })
-}
-
-const download = (url, filename, callback) => {
+function* download(url, filename) {
     console.log(`Downloading ${url}`)
-    request(url, (err, res, body) => {
-        if (err) return callback(err)
-        saveFile(filename, body, err => {
-            if (err) return callback(err)
-            callback(null, body)
-        })
-    })
+    const response = yield request(url)
+    const body = response[1]
+    yield mkdirp(path.dirname(filename))
+    yield writeFile(filename, body)
+    console.log(`Downloaded and saved ${url}`)
+    return body
 }
 
-const spiderLinks = (currentUrl, body, nesting, callback) => {
-    if (nesting === 0) return process.nextTick(callback)
+function* spiderLinks(currentUrl, body, nesting) {
+    if (nesting === 0) return nextTick()
     const links = utilities.getPageLinks(currentUrl, body)
-    // repeat links
-    const iterate = index => {
-        if (index === links.length) return callback()
-        spider(links[index], nesting - 1, err => {
-            if (err) return callback(err)
-            iterate(index + 1)
-        })
+    for (let i = 0; i < links.length; i++) {
+        yield spider(links[i], nesting - 1)
     }
-    iterate(0)
-
 }
 
-const spider = (url, nesting, callback) => {
+function* spider(url, nesting) {
     const filename = utilities.urlToFilename(url)
-    fs.readFile(filename, 'utf8', (err, body) => {
-        if (err) {
-            if (err.code !== 'ENOENT') return callback(err)
-
-            return download(url, filename, (err, body) => {
-                if (err) return callback(err)
-                spiderLinks(url, body, nesting, callback)
-            })
-        }
-
-        spiderLinks(url, body, nesting, callback)
-    })
-}
-// end
-
-spider(process.argv[2], 1, (err) => {
-    if (err) {
-        console.log(err)
-        process.exit()
-    } else {
-        console.log('Download completed')
+    let body
+    try {
+        body = yield readFile(filename, 'utf8')
+    } catch(err) {
+        if (err.code !== 'ENOENT') throw err
+        body = yield download(url, filename)
     }
-    
+    yield spiderLinks(url, body, nesting)
+}
+
+co(function* () {
+    try {
+        yield spider(process.argv[2], 2)
+        console.log('Download complete')
+    } catch(err) {
+        console.log(err)
+    }
 })
