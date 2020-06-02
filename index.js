@@ -13,6 +13,7 @@ const nextTick = thunkify(process.nextTick)
 const path = require('path')
 const utilities = require('./utilities')
 
+
 function* download(url, filename) {
     console.log(`Downloading ${url}`)
     const response = yield request(url)
@@ -23,6 +24,7 @@ function* download(url, filename) {
     return body
 }
 
+// // sequential execution
 // function* spiderLinks(currentUrl, body, nesting) {
 //     if (nesting === 0) return nextTick()
 //     const links = utilities.getPageLinks(currentUrl, body)
@@ -31,7 +33,34 @@ function* download(url, filename) {
 //     }
 // }
 
-// parallel execution
+// // parallel execution
+// function spiderLinks(currentUrl, body, nesting) {
+//     if (nesting === 0) return nextTick()
+
+//     // return thunk
+//     return callback => {
+//         let completed = 0, hasErrors = false
+//         const links = utilities.getPageLinks(currentUrl, body)
+//         if (links.length === 0) return process.nextTick(callback)
+
+//         function done(err, result) {
+//             if (err && !hasErrors) {
+//                 hasErrors = true
+//                 return callback(err)
+//             }
+//             if (++completed === links.length && !hasErrors) callback()
+//         }
+
+//         for (let i = 0; i < links.length; i++) {
+//             co(spider(links[i], nesting - 1)).then(done)
+//         }
+//     }
+// }
+
+// limited parallel execution
+const TaskQueue = require('./taskQueue')
+const downloadQueue = new TaskQueue(2)
+
 function spiderLinks(currentUrl, body, nesting) {
     if (nesting === 0) return nextTick()
 
@@ -49,12 +78,14 @@ function spiderLinks(currentUrl, body, nesting) {
             if (++completed === links.length && !hasErrors) callback()
         }
 
-        for (let i = 0; i < links.length; i++) {
-            co(spider(links[i], nesting - 1)).then(done)
-        }
+        links.forEach(link => {
+            downloadQueue.pushTask(function* () {
+                yield spider(link, nesting - 1)
+                done()
+            })
+        })
     }
 }
-
 function* spider(url, nesting) {
     const filename = utilities.urlToFilename(url)
     let body
