@@ -23,11 +23,35 @@ function* download(url, filename) {
     return body
 }
 
-function* spiderLinks(currentUrl, body, nesting) {
+// function* spiderLinks(currentUrl, body, nesting) {
+//     if (nesting === 0) return nextTick()
+//     const links = utilities.getPageLinks(currentUrl, body)
+//     for (let i = 0; i < links.length; i++) {
+//         yield spider(links[i], nesting - 1)
+//     }
+// }
+
+// parallel execution
+function spiderLinks(currentUrl, body, nesting) {
     if (nesting === 0) return nextTick()
-    const links = utilities.getPageLinks(currentUrl, body)
-    for (let i = 0; i < links.length; i++) {
-        yield spider(links[i], nesting - 1)
+
+    // return thunk
+    return callback => {
+        let completed = 0, hasErrors = false
+        const links = utilities.getPageLinks(currentUrl, body)
+        if (links.length === 0) return process.nextTick(callback)
+
+        function done(err, result) {
+            if (err && !hasErrors) {
+                hasErrors = true
+                return callback(err)
+            }
+            if (++completed === links.length && !hasErrors) callback()
+        }
+
+        for (let i = 0; i < links.length; i++) {
+            co(spider(links[i], nesting - 1)).then(done)
+        }
     }
 }
 
@@ -45,7 +69,7 @@ function* spider(url, nesting) {
 
 co(function* () {
     try {
-        yield spider(process.argv[2], 2)
+        yield spider(process.argv[2], 1)
         console.log('Download complete')
     } catch(err) {
         console.log(err)
